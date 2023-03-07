@@ -1,6 +1,6 @@
 use std::env;
 
-use chatgpt_api::{chat_completions, completions};
+use openai_chat::{chat_completions, completions};
 #[actix_rt::main]
 async fn main() {
     let api_key = env::var("OPEN_AI_API_KEY").expect("OPEN_AI_API_KEY must be set");
