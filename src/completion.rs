@@ -12,10 +12,10 @@ static TEXT_DAVINCI_MODEL: &str = "text-davinci-003";
 ///
 /// model: text-davinci-003
 ///
-/// max_tokens = 6
+/// max_tokens = 3000(exclude prompt token)
 pub async fn completions(prompt: &str, api_key: &str) -> std::result::Result<String, error::Errpr> {
     let model = TEXT_DAVINCI_MODEL;
-    let max_tokens: u32 = 4096;
+    let max_tokens: u32 = 3000;
     let res = completions_inner(prompt, model, max_tokens, api_key).await?;
     Ok(res)
 }
