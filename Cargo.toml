@@ -2,8 +2,13 @@
 name = "chatgpt-api"
 version = "0.1.0"
 edition = "2021"
-
+readme = "README.md"
+license="MIT"
+description="chatgpt api"
+keywords = ["openai","api","chatgpt"]
+documentation = "https://docs.rs/chatgpt_api/"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+repository = "https://github.com/dobefore/chatgpt-api-rs"
 
 [dependencies]
 openai_api_client="0.5.0"
