@@ -1,31 +1,35 @@
 //! mainly use model text-davinci-003
-//! api: POST https://api.openai.com/v1/completions 
-use std::time::Duration;
-use openai_api_client::{Request, CompletionsParams,ClientError, CompletionsResponse, ErrorResponse};
-use reqwest::{ClientBuilder,  header};
+//! api: POST https://api.openai.com/v1/completions
 use crate::error;
+use openai_api_client::{
+    ClientError, CompletionsParams, CompletionsResponse, ErrorResponse, Request,
+};
+use reqwest::{header, ClientBuilder};
+use std::time::Duration;
 
-static TEXT_DAVINCI_MODEL: &str ="text-davinci-003";
-/// haedcode max-token and model inside 
-/// 
+static TEXT_DAVINCI_MODEL: &str = "text-davinci-003";
+/// haedcode max-token and model inside
+///
 /// model: text-davinci-003
-/// 
+///
 /// max_tokens = 6
-pub async fn completions(  prompt: &str, 
-    api_key: &str,)->std::result::Result<String,error::Errpr> {
-        let model = TEXT_DAVINCI_MODEL;
-        let max_tokens: u32 = 4096;
- let res=       completions_inner(prompt, model, max_tokens, api_key).await?;
- Ok(res)
-    }
+pub async fn completions(prompt: &str, api_key: &str) -> std::result::Result<String, error::Errpr> {
+    let model = TEXT_DAVINCI_MODEL;
+    let max_tokens: u32 = 4096;
+    let res = completions_inner(prompt, model, max_tokens, api_key).await?;
+    Ok(res)
+}
 /// use reqwest crate to make http request
-pub async fn completions_inner(  prompt: &str, model: &str,
+pub async fn completions_inner(
+    prompt: &str,
+    model: &str,
     max_tokens: u32,
-    api_key: &str,)->std::result::Result<String,ClientError> {
- let params = CompletionsParams {
+    api_key: &str,
+) -> std::result::Result<String, ClientError> {
+    let params = CompletionsParams {
         model: model.to_string(),
         temperature: 0,
-        max_tokens: max_tokens,
+        max_tokens,
         top_p: 1.0,
         frequency_penalty: 0.0,
         presence_penalty: 0.0,
@@ -40,8 +44,7 @@ pub async fn completions_inner(  prompt: &str, model: &str,
         user: None,
     };
 
-
-     let request = Request {
+    let request = Request {
         model: params.model.clone(),
         prompt: prompt.to_string(),
         temperature: params.temperature,
@@ -60,31 +63,37 @@ pub async fn completions_inner(  prompt: &str, model: &str,
         user: params.user.clone(),
     };
     let request = serde_json::to_string(&request).unwrap();
- let mut header= header::HeaderMap::new();
- header.insert("Content-Type", "application/json".parse().unwrap());
- header.insert("Authorization", format!("Bearer {}", api_key).parse().unwrap());
-    let client=ClientBuilder::new().default_headers(header).build().unwrap();
+    let mut header = header::HeaderMap::new();
+    header.insert("Content-Type", "application/json".parse().unwrap());
+    header.insert(
+        "Authorization",
+        format!("Bearer {api_key}").parse().unwrap(),
+    );
+    let client = ClientBuilder::new()
+        .default_headers(header)
+        .build()
+        .unwrap();
     let response = client
         .post("https://api.openai.com/v1/completions")
         .timeout(Duration::from_secs(60))
         .body(request)
         .send()
         .await
-        .map_err(|e| ClientError::NetworkError(format!("{:?}",e)))?
+        .map_err(|e| ClientError::NetworkError(format!("{e:?}")))?
         .bytes()
-        .await.map_err(|e|ClientError::NetworkError(format!("{:?}",e)))?
-        ;
+        .await
+        .map_err(|e| ClientError::NetworkError(format!("{e:?}")))?;
 
-    let response_str = std::str::from_utf8(&response)
-        .map_err(|e| ClientError::OtherError(format!("{:?}",e)))?;
-    
+    let response_str =
+        std::str::from_utf8(&response).map_err(|e| ClientError::OtherError(format!("{e:?}")))?;
+
     let completions_response: CompletionsResponse = match serde_json::from_str(response_str) {
         Ok(response) => response,
         Err(e1) => {
             let error_response: ErrorResponse = match serde_json::from_str(response_str) {
                 Ok(response) => response,
                 Err(e2) => {
-                    return Err(ClientError::OtherError(format!("{:?} {:?}",e2, e1)));
+                    return Err(ClientError::OtherError(format!("{e2:?} {e1:?}")));
                 }
             };
             return Err(ClientError::APIError(error_response.error.message));
