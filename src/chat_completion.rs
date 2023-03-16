@@ -85,6 +85,28 @@ pub struct ChatCompletionsChoice {
     pub message: HashMap<String, String>,
     pub finish_reason: String,
 }
+async fn request(body: String, api_key: &str) -> std::result::Result<Vec<u8>, error::Errpr> {
+    let mut header = header::HeaderMap::new();
+    header.insert("Content-Type", "application/json".parse().unwrap());
+    header.insert(
+        "Authorization",
+        format!("Bearer {api_key}").parse().unwrap(),
+    );
+    let client = ClientBuilder::new().default_headers(header).build()?;
+    let response = client
+        .post(URL)
+        .timeout(Duration::from_secs(60))
+        .body(body)
+        .send()
+        .await
+        .map_err(|e| ClientError::NetworkError(format!("{e:?}")))?
+        .bytes()
+        .await
+        .map_err(|e| ClientError::NetworkError(format!("{e:?}")))?;
+
+    Ok(response.to_vec())
+}
+
 /// Use model `text-gpt-3.5-turbo`  to generate a chat completion.
 ///
 /// this is a relatively easy wrapper for the api.
@@ -99,24 +121,25 @@ pub async fn chat_completions(
     msg.insert("role".to_string(), "user".to_string());
     msg.insert("content".to_string(), prompt.to_string());
     let req = ChatCompletionsParams::new(vec![msg]);
-    let request = serde_json::to_string(&req)?;
-    let mut header = header::HeaderMap::new();
-    header.insert("Content-Type", "application/json".parse().unwrap());
-    header.insert(
-        "Authorization",
-        format!("Bearer {api_key}").parse().unwrap(),
-    );
-    let client = ClientBuilder::new().default_headers(header).build()?;
-    let response = client
-        .post(URL)
-        .timeout(Duration::from_secs(60))
-        .body(request)
-        .send()
-        .await
-        .map_err(|e| ClientError::NetworkError(format!("{e:?}")))?
-        .bytes()
-        .await
-        .map_err(|e| ClientError::NetworkError(format!("{e:?}")))?;
+    let body = serde_json::to_string(&req)?;
+    let response = request(body, api_key).await?;
+    let mut completions_response: ChatCompletionsResponse = serde_json::from_slice(&response)?;
+    Ok(completions_response.choices[0]
+        .message
+        .remove("content")
+        .unwrap_or("".to_string()))
+}
+/// Has the ability to support context chat by passing prompt in the form of an array of hashmap
+/// that contiain role and content
+///
+/// Use model `text-gpt-3.5-turbo`  to generate a chat completion.
+pub async fn chat_completions_full(
+    prompt: Vec<HashMap<String, String>>,
+    api_key: &str,
+) -> std::result::Result<String, error::Errpr> {
+    let req = ChatCompletionsParams::new(prompt);
+    let body = serde_json::to_string(&req)?;
+    let response = request(body, api_key).await?;
     let mut completions_response: ChatCompletionsResponse = serde_json::from_slice(&response)?;
     Ok(completions_response.choices[0]
         .message
